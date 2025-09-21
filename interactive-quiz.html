@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Interactive Quiz Application</title>
+  <style>
+    :root{--bg:#fffaf3;--card:#ffffff;--accent:#2b6cb0;--accent-dark:#244e82;--ok:#2f855a;--bad:#e53e3e;--muted:#6b7280}
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:linear-gradient(180deg, var(--bg), #fff); color:#111}
+    .wrap{max-width:920px;margin:36px auto;padding:28px}
+    header{display:flex;align-items:center;gap:16px}
+    .logo{width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,#f97316,#fb923c);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    h1{font-size:28px;margin:0}
+    p.lead{margin:6px 0 18px;color:var(--muted)}
+
+    .card{background:var(--card);border-radius:14px;padding:22px;box-shadow:0 8px 24px rgba(16,24,40,0.06)}
+    .meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .progress{flex:1;height:10px;background:#f3f4f6;border-radius:999px;overflow:hidden;margin:0 14px}
+    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-dark));width:0%;transition:width .5s ease}
+
+    .question{font-size:20px;font-weight:600;margin:12px 0}
+    .options{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+    .opt{padding:12px 14px;border-radius:10px;border:1px solid #e6e9ee;cursor:pointer;background:linear-gradient(180deg,#fff,#fbfbfe);transition:all .15s ease;box-shadow:0 1px 0 rgba(16,24,40,0.02)}
+    .opt:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(16,24,40,0.06)}
+    .opt.disabled{cursor:default;opacity:.9}
+    .opt.correct{border-color:rgba(47,133,90,0.15);background:linear-gradient(180deg,#ecfdf5,#f0fff7);box-shadow:0 6px 18px rgba(47,133,90,0.06)}
+    .opt.wrong{border-color:rgba(229,62,62,0.15);background:linear-gradient(180deg,#fff5f5,#fff7f7);box-shadow:0 6px 18px rgba(229,62,62,0.06)}
+
+    .hint{margin-top:12px;padding:12px;border-radius:8px;background:#f8fafc;border:1px solid #eef2ff;color:var(--muted)}
+
+    .controls{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:18px}
+    .btn{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#fff;font-weight:600;cursor:pointer}
+    .btn.ghost{background:transparent;color:var(--accent);border:1px solid rgba(43,108,176,0.12)}
+
+    .results{display:none;padding:18px;text-align:center}
+    .results.show{display:block}
+    .bigscore{font-size:44px;font-weight:800;margin:6px 0}
+
+    footer{margin-top:18px;color:var(--muted);font-size:13px}
+
+    @media (max-width:640px){.options{grid-template-columns:1fr}.meta{flex-direction:column;align-items:flex-start}.progress{width:100%;margin:8px 0}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">LJ</div>
+      <div>
+        <h1>Interactive Quiz Application</h1>
+        <p class="lead">Answer questions, get instant feedback, and see your score at the end.</p>
+      </div>
+    </header>
+
+    <main class="card" id="app">
+      <div class="meta">
+        <div class="score">Score: <strong id="score">0</strong></div>
+        <div class="progress" title="Progress"><i id="progressBar"></i></div>
+        <div class="qcount"><span id="current">0</span>/<span id="total">0</span></div>
+      </div>
+
+      <div id="quizArea">
+        <div id="questionBlock">
+          <div class="question" id="question">Question text</div>
+          <div class="options" id="options"></div>
+          <div class="hint" id="explanation" style="display:none"></div>
+
+          <div class="controls">
+            <div>
+              <button class="btn ghost" id="skipBtn">Skip</button>
+              <button class="btn" id="nextBtn" style="display:none">Next</button>
+            </div>
+            <div>
+              <button class="btn ghost" id="shuffleBtn">Shuffle</button>
+              <button class="btn" id="restartBtn">Restart</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="results" class="results">
+          <h2>Your Results</h2>
+          <div class="bigscore" id="finalScore">0 / 0</div>
+          <p id="finalMsg">Well done!</p>
+          <div style="margin-top:12px">
+            <button class="btn" id="tryAgain">Try Again</button>
+            <button class="btn ghost" id="reviewBtn">Review Questions</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <footer>Tip: Edit the <code>questions</code> array in the script to add or change questions.</footer>
+  </div>
+
+  <script>
+    // ========= DYNAMIC QUESTIONS - Edit or extend this array =========
+    const questions = [
+      { id:1, q: "Which language runs in a web browser?", options: ["Java","C","Python","JavaScript"], answer: 3, explain: "JavaScript runs natively in web browsers."},
+      { id:2, q: "What does CSS stand for?", options: ["Central Style Sheets","Cascading Style Sheets","Cascading Simple Sheets","Computer Style Sheets"], answer: 1, explain: "CSS = Cascading Style Sheets."},
+      { id:3, q: "Which HTML element do we put the JavaScript in?", options: ["<js>","<script>","<javascript>","<scripting>"], answer: 1, explain: "Use the <script> tag to include JS."},
+      { id:4, q: "Which company developed the React library?", options: ["Google","Facebook (Meta)","Microsoft","Apple"], answer: 1, explain: "React was developed by Facebook (now Meta)."},
+      { id:5, q: "What is the output of 2 + '2' in JavaScript?", options: ["4","'22'","TypeError","'4'"], answer: 1, explain: "Number + string produces string concatenation, so 2 + '2' -> '22'."}
+    ];
+
+    // ============ App State ============
+    let pool = [...questions];
+    let currentIndex = 0;
+    let score = 0;
+    let answered = 0;
+
+    // ============ DOM refs ============
+    const el = id => document.getElementById(id);
+    const questionEl = el('question');
+    const optionsEl = el('options');
+    const explanationEl = el('explanation');
+    const scoreEl = el('score');
+    const progressBar = el('progressBar');
+    const currentEl = el('current');
+    const totalEl = el('total');
+    const nextBtn = el('nextBtn');
+    const skipBtn = el('skipBtn');
+    const restartBtn = el('restartBtn');
+    const shuffleBtn = el('shuffleBtn');
+    const resultsEl = el('results');
+    const finalScoreEl = el('finalScore');
+    const finalMsg = el('finalMsg');
+    const tryAgain = el('tryAgain');
+    const reviewBtn = el('reviewBtn');
+
+    // ============ Helpers ============
+    function shuffleArray(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a}
+
+    function startQuiz(shuffle=false){
+      pool = [...questions];
+      if(shuffle) pool = shuffleArray(pool);
+      currentIndex = 0; score = 0; answered = 0;
+      scoreEl.textContent = score;
+      totalEl.textContent = pool.length;
+      resultsEl.classList.remove('show');
+      el('quizArea').style.display = '';
+      loadQuestion();
+    }
+
+    function loadQuestion(){
+      const q = pool[currentIndex];
+      currentEl.textContent = currentIndex+1;
+      questionEl.innerHTML = q.q;
+      optionsEl.innerHTML = '';
+      explanationEl.style.display = 'none';
+      nextBtn.style.display = 'none';
+      skipBtn.disabled = false;
+
+      q.options.forEach((optText, i) => {
+        const b = document.createElement('button');
+        b.className = 'opt';
+        b.innerHTML = `<span>${optText}</span>`;
+        b.addEventListener('click', () => selectOption(b, i, q));
+        optionsEl.appendChild(b);
+      });
+
+      updateProgress();
+    }
+
+    function selectOption(button, chosenIndex, q){
+      // prevent double-click
+      if(button.classList.contains('disabled')) return;
+
+      const buttons = Array.from(optionsEl.children);
+      buttons.forEach(btn => btn.classList.add('disabled'));
+      skipBtn.disabled = true;
+
+      const correctIndex = q.answer;
+      if(chosenIndex === correctIndex){
+        button.classList.add('correct');
+        score += 1;
+        scoreEl.textContent = score;
+      } else {
+        button.classList.add('wrong');
+        // highlight correct
+        const correctBtn = buttons[correctIndex];
+        if(correctBtn) correctBtn.classList.add('correct');
+      }
+
+      // show explanation if present
+      if(q.explain){
+        explanationEl.style.display = '';
+        explanationEl.textContent = q.explain;
+      }
+
+      answered += 1;
+      nextBtn.style.display = (currentIndex < pool.length - 1) ? '' : 'none';
+
+      // if last question, show results after short delay
+      if(currentIndex === pool.length - 1){
+        setTimeout(() => showResults(), 700);
+      }
+    }
+
+    function updateProgress(){
+      const pct = Math.round(((currentIndex)/pool.length)*100);
+      progressBar.style.width = pct + '%';
+    }
+
+    nextBtn.addEventListener('click', () => {
+      if(currentIndex < pool.length - 1){
+        currentIndex += 1; loadQuestion();
+      } else {
+        showResults();
+      }
+    });
+
+    skipBtn.addEventListener('click', () => {
+      // mark as skipped (no score change) and move on
+      const buttons = Array.from(optionsEl.children);
+      buttons.forEach(btn => btn.classList.add('disabled'));
+      explanationEl.style.display = '';
+      explanationEl.textContent = 'Skipped. Correct: ' + pool[currentIndex].options[pool[currentIndex].answer];
+      skipBtn.disabled = true;
+      setTimeout(() => {
+        if(currentIndex < pool.length - 1){ currentIndex += 1; loadQuestion(); }
+        else showResults();
+      }, 900);
+    });
+
+    restartBtn.addEventListener('click', ()=> startQuiz(false));
+    shuffleBtn.addEventListener('click', ()=> startQuiz(true));
+    tryAgain.addEventListener('click', ()=> startQuiz(true));
+    reviewBtn.addEventListener('click', ()=> {
+      // show review: simply restart in same order but reveal answers as user clicks so they can learn
+      startQuiz(false);
+    });
+
+    function showResults(){
+      el('quizArea').style.display = '';
+      resultsEl.classList.add('show');
+      finalScoreEl.textContent = score + ' / ' + pool.length;
+      const pct = Math.round((score / pool.length) * 100);
+      if(pct === 100) finalMsg.textContent = 'Perfect — Amazing!';
+      else if(pct >= 75) finalMsg.textContent = 'Great job!';
+      else if(pct >= 50) finalMsg.textContent = 'Nice effort — keep practicing.';
+      else finalMsg.textContent = 'Keep learning — you got this!';
+      // fill progress to full
+      progressBar.style.width = '100%';
+    }
+
+    // init
+    startQuiz(true);
+  </script>
+</body>
+</html>
